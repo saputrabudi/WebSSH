@@ -43,7 +43,7 @@ WebSSH adalah aplikasi yang dibangun dengan Python (Flask dan Socket.IO) yang me
 
 ```bash
 # Clone repository
-git clone [url-repository]
+git clone https://github.com/saputrabudi/WebSSH.git
 
 # Masuk ke direktori
 cd WebSSH
