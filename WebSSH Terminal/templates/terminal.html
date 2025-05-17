@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebSSH Terminal by Saputra Budi</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <script src="https://unpkg.com/xterm@5.1.0/lib/xterm.js"></script>
+    <script src="https://unpkg.com/xterm-addon-fit@0.7.0/lib/xterm-addon-fit.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/xterm@5.1.0/css/xterm.css" />
+</head>
+<body>
+    <div class="container">
+        <div class="connection-form">
+            <h2>WebSSH Terminal by Saputra Budi</h2>
+            <input type="text" id="host" placeholder="Host" value="0.0.0.0">
+            <input type="text" id="username" placeholder="Username" value="saputrabudi">
+            <input type="password" id="password" placeholder="Password">
+            <button onclick="connect()" id="connectBtn">Connect</button>
+        </div>
+        <div id="terminal"></div>
+    </div>
+
+    <script>
+        const term = new Terminal({
+            cursorBlink: true,
+            fontSize: 14,
+            fontFamily: 'Courier New',
+            theme: {
+                background: '#000',
+                foreground: '#fff',
+                cursor: '#fff'
+            },
+            rows: 30
+        });
+
+        const fitAddon = new FitAddon.FitAddon();
+        term.loadAddon(fitAddon);
+        
+        term.open(document.getElementById('terminal'));
+        fitAddon.fit();
+
+        let socket = null;
+        let connected = false;
+
+        function connect() {
+            if (connected) {
+                socket.disconnect();
+                document.getElementById('connectBtn').textContent = 'Connect';
+                connected = false;
+                return;
+            }
+
+            const host = document.getElementById('host').value;
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+
+            if (!host || !username || !password) {
+                term.write('\r\nPlease fill all fields\r\n');
+                return;
+            }
+
+            if (!socket) {
+                socket = io({
+                    reconnection: false
+                });
+                setupSocketHandlers();
+            }
+
+            socket.emit('ssh_connect', {
+                host: host,
+                username: username,
+                password: password
+            });
+
+            document.getElementById('connectBtn').textContent = 'Disconnect';
+            connected = true;
+        }
+
+        function setupSocketHandlers() {
+            socket.on('connect', () => {
+                console.log('Connected to server');
+            });
+
+            socket.on('disconnect', () => {
+                term.write('\r\nDisconnected from server\r\n');
+                document.getElementById('connectBtn').textContent = 'Connect';
+                connected = false;
+            });
+
+            socket.on('ssh_output', data => {
+                term.write(data.output);
+            });
+
+            socket.on('ssh_connected', () => {
+                term.clear();
+                term.write('Connected to SSH server\r\n');
+            });
+
+            socket.on('ssh_error', data => {
+                term.write(`\r\nError: ${data.error}\r\n`);
+                document.getElementById('connectBtn').textContent = 'Connect';
+                connected = false;
+            });
+        }
+
+        term.onData(data => {
+            if (socket && connected) {
+                socket.emit('ssh_input', { input: data });
+            }
+        });
+
+        window.addEventListener('resize', () => {
+            fitAddon.fit();
+        });
+    </script>
+</body>
+</html> 
